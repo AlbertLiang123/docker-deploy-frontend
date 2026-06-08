@@ -1,8 +1,8 @@
-name: Deploy frontend application
+name: Deploy frontend V2 on port 9999
 'on':
   push:
     branches:
-      - main
+      - v2-update
 
 jobs:
   docker:
@@ -23,28 +23,29 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: prepare the docker-compose run
-        run: |
-          ls -l
-
-      - name: Build and push
+      - name: Build and push V2 image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: furklrt/234-deploylab-frontend:latest
+          tags: fucklrt/234-deploylab-frontend:v2
 
-      - name: copy file via ssh password
+      - name: Export V2 Image to Tarball
+        run: |
+          docker pull fucklrt/234-deploylab-frontend:v2
+          docker save fucklrt/234-deploylab-frontend:v2 -o frontend-v2.tar
+
+      - name: copy files via ssh
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{secrets.HOST_SERVER}}
           username: ${{ secrets.HOST_USER_NAME }}
           key: ${{ secrets.HOST_SSH_PRIVATE_KEY }}
           port: 22
-          source: "docker-compose.yml"
-          target: "/root/frontend"
+          source: "docker-compose-v2.yml,frontend-v2.tar"
+          target: "/root/frontend-v2"
 
-      - name: docker compose
+      - name: docker compose deploy V2 on port 9999
         uses: appleboy/ssh-action@v1.2.1
         with:
           host: ${{secrets.HOST_SERVER}}
@@ -52,9 +53,8 @@ jobs:
           key: ${{ secrets.HOST_SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            cd /root/frontend
-            echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login --username ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
-            docker compose down
-            docker compose pull
-            docker compose up -d
-            rm -rf /root/frontend
+            cd /root/frontend-v2
+            sed -i '/pull_policy/d' docker-compose-v2.yml
+            docker load -i frontend-v2.tar
+            docker compose -f docker-compose-v2.yml down || true
+            docker compose -f docker-compose-v2.yml up -d || docker-compose -f docker-compose-v2.yml up -d
