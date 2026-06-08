@@ -36,14 +36,19 @@ jobs:
           # 请确认这里的用户名 fucklrt 是你正确的 Docker Hub ID
           tags: fucklrt/234-deploylab-frontend:latest 
 
-      - name: copy file via ssh password
+      - name: Export Image to Tarball
+        run: |
+          docker pull fucklrt/234-deploylab-frontend:latest
+          docker save fucklrt/234-deploylab-frontend:latest -o frontend.tar
+
+      - name: copy files via ssh
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST_SERVER }}
           username: ${{ secrets.HOST_USER_NAME }}
           key: ${{ secrets.HOST_SSH_PRIVATE_KEY }}
           port: 22
-          source: "docker-compose.yml"
+          source: "docker-compose.yml,frontend.tar"
           target: "/root/frontend"
 
       - name: docker compose deploy
@@ -54,11 +59,7 @@ jobs:
           key: ${{ secrets.HOST_SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            mkdir -p /root/frontend
             cd /root/frontend
-            echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login --username ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
-            
-            # 兼容老版本 docker-compose，并加上 || true 防止首次运行报错中断
-            docker-compose down || true
-            docker-compose pull
-            docker-compose up -d
+            docker load -i frontend.tar
+            docker compose down || true
+            docker compose up -d || docker-compose up -d
