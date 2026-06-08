@@ -34,6 +34,7 @@ jobs:
         run: |
           docker pull fucklrt/234-deploylab-frontend:v2
           docker save fucklrt/234-deploylab-frontend:v2 -o frontend-v2.tar
+          sudo chmod 644 frontend-v2.tar
 
       - name: copy files via ssh
         uses: appleboy/scp-action@v0.1.7
