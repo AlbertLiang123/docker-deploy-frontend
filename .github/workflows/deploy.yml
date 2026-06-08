@@ -55,7 +55,10 @@ jobs:
           port: 22
           script: |
             cd /root/frontend-v2
-            sed -i '/pull_policy/d' docker-compose-v2.yml
+
+            # 安装 docker-compose（防止 unknown command 报错）
+            apt-get update && apt-get install docker-compose-plugin docker-compose -y || true
+
             docker load -i frontend-v2.tar
             docker compose -f docker-compose-v2.yml down || true
             docker compose -f docker-compose-v2.yml up -d || docker-compose -f docker-compose-v2.yml up -d
